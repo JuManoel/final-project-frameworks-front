@@ -31,14 +31,26 @@ a {
 a:hover {
   color: #535bf2;
 }
-
-body {
+#app {
+  height: 100%;
   margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
+  padding: 0;
+}
+body {
+  background-image: url('/background-login.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   min-height: 100vh;
 }
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden; /* ⚠️ Evita scroll global */
+}
+
 
 h1 {
   font-size: 3.2em;
