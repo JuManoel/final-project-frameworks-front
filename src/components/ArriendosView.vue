@@ -1,115 +1,151 @@
 <template>
   <div class="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
     <h2 class="text-2xl font-bold text-white mb-6">Explorar Arriendos</h2>
-    <div class="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      <div
-        v-for="item in arriendos"
-        :key="item.id"
-        class="bg-[#162556] rounded-lg shadow-lg overflow-hidden hover:shadow-2xl transition-shadow duration-300"
-      >
-        <img
-          :src="item.imagen"
-          alt="Imagen del arriendo"
-          class="w-full h-48 object-cover"
-        />
-        <div class="p-4">
-          <h3 class="text-lg font-semibold text-white">{{ item.titulo }}</h3>
-          <p class="text-gray-300">Sector: {{ item.sector }}</p>
-          <p class="text-blue-400 font-bold mt-2">$ {{ item.precio }}</p>
-        </div>
-      </div>
+    
+    <!-- Tabulator table -->
+    <div id="houses-table"></div>
+
+    <!-- Loading state -->
+    <div v-if="loading" class="text-center py-8 text-white">
+      Cargando...
     </div>
   </div>
 </template>
 
-
-
-
 <script setup>
-const arriendos = [
-  {
-    id: 1,
-    titulo: 'Departamento moderno',
-    sector: 'Centro',
-    precio: '8,500',
-    imagen: '/src/assets/arriendo1.jpg',
+import { ref, onMounted } from 'vue'
+import { getHouses } from '../api/house'
+import { TabulatorFull as Tabulator } from 'tabulator-tables'
+import "tabulator-tables/dist/css/tabulator.min.css"
+
+// Estado
+const houses = ref([])
+const loading = ref(false)
+let table = null
+
+// Configuración de Tabulator
+const tableConfig = {
+  height: "600px",
+  layout: "fitColumns",
+  pagination: true,
+  paginationMode: "remote",
+  paginationSize: 15,
+  paginationSizeSelector: [15, 30, 50],
+  columns: [
+    { title: "Descripción", field: "description", sorter: "string", width: "30%" },
+    { title: "Propietario", field: "nameOwener", sorter: "string", width: "20%" },
+    { title: "Email", field: "emailOwener", sorter: "string", width: "20%" },
+    {
+      title: "Calificación",
+      field: "stars",
+      sorter: "number",
+      width: "15%",
+      formatter: function(cell) {
+        const value = cell.getValue()
+        return `<span style="color: #FBBF24">★</span> ${value}`
+      }
+    },
+    {
+      title: "Dirección",
+      field: "addressData",
+      width: "15%",
+      formatter: function(cell) {
+        const address = cell.getValue()
+        if (!address) return "";
+        return `${address.street}, ${address.city}`
+      }
+    }
+  ],
+  ajaxURL: "http://localhost:8080/house",
+  ajaxConfig: {
+    method: "GET",
+    headers: {
+      "Authorization": `Bearer ${localStorage.getItem('token')}`
+    }
   },
-  {
-    id: 2,
-    titulo: 'Casa familiar con patio',
-    sector: 'Sur',
-    precio: '12,000',
-    imagen: '/src/assets/arriendo2.jpg',
+  paginationDataReceived: {
+    "last_page": "totalPages",
+    "total": "totalElements",
+    "current_page": "number",
+    "data": "content"
   },
-  {
-    id: 3,
-    titulo: 'Estudio minimalista',
-    sector: 'Norte',
-    precio: '6,000',
-    imagen: '/src/assets/arriendo3.jpg',
+  ajaxResponse: function(url, params, response) {
+    console.log('API Response:', response); // Para debugging
+    return {
+      last_page: response.totalPages,
+      current_page: response.number,
+      total: response.totalElements,
+      data: response.content.map(item => ({
+        ...item,
+        id: item.idHouse // Map idHouse to id for Tabulator
+      }))
+    };
   },
-  {
-    id: 4,
-    titulo: 'Departamento amoblado',
-    sector: 'Centro',
-    precio: '10,000',
-    imagen: '/src/assets/arriendo4.jpg',
-  },
-  {
-    id: 5,
-    titulo: 'Loft artístico',
-    sector: 'Este',
-    precio: '9,200',
-    imagen: '/src/assets/arriendo5.jpg',
-  },
-  {
-    id: 6,
-    titulo: 'Casa de lujo',
-    sector: 'Norte',
-    precio: '18,500',
-    imagen: '/src/assets/arriendo6.jpg',
-  },
-  {
-    id: 7,
-    titulo: 'Apartamento económico',
-    sector: 'Sur',
-    precio: '5,500',
-    imagen: '/src/assets/arriendo7.jpg',
-  },
-  {
-    id: 8,
-    titulo: 'Dúplex moderno',
-    sector: 'Oeste',
-    precio: '11,000',
-    imagen: '/src/assets/arriendo8.jpg',
-  },
-  {
-    id: 9,
-    titulo: 'Mini estudio',
-    sector: 'Centro',
-    precio: '4,800',
-    imagen: '/src/assets/arriendo9.jpg',
-  },
-  {
-    id: 10,
-    titulo: 'Penthouse con terraza',
-    sector: 'Norte',
-    precio: '22,000',
-    imagen: '/src/assets/arriendo10.jpg',
-  },
-  {
-    id: 11,
-    titulo: 'Casa colonial',
-    sector: 'Centro Histórico',
-    precio: '13,700',
-    imagen: '/src/assets/arriendo11.jpg',
-  },
-  {
-    id: 12,
-    titulo: 'Departamento nuevo',
-    sector: 'Este',
-    precio: '9,000',
-    imagen: '/src/assets/arriendo12.jpg',
-  },
-]
+  ajaxParams: function(url, config, params = {}) {
+    return {
+      page: params.page || 0,
+      size: params.size || 15,
+      sort: params.sort || ""
+    };
+  }
+}
+
+// Inicializar Tabulator
+const initTable = () => {
+  table = new Tabulator("#houses-table", {
+    ...tableConfig,
+    theme: "midnight",
+    rowFormatter: function(row) {
+      row.getElement().style.backgroundColor = "#162556";
+      row.getElement().style.color = "white";
+    }
+  });
+  table.on("dataLoaded", function(data) {
+    console.log("Datos cargados de la petición:", data);
+  });
+  // Add table events for debugging
+  table.on("pageLoaded", function(pageno) {
+    console.log("Page Loaded:", pageno);
+  });
+
+  table.on("ajaxError", function(error) {
+    console.error("Ajax Error:", error);
+  });
+}
+
+onMounted(() => {
+  initTable()
+})
 </script>
+
+<style>
+/* Estilos personalizados para Tabulator */
+.tabulator {
+  background-color: #1a1f3c !important;
+  border: 1px solid #2d3a7d !important;
+}
+
+.tabulator-header {
+  background-color: #162556 !important;
+  color: white !important;
+}
+
+.tabulator-footer {
+  background-color: #162556 !important;
+  color: white !important;
+}
+
+.tabulator-page {
+  background-color: #1c398e !important;
+  color: white !important;
+  border: none !important;
+}
+
+.tabulator-page.active {
+  background-color: #3a59c1 !important;
+}
+
+.tabulator-cell {
+  color: white !important;
+}
+</style>

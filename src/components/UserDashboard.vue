@@ -20,6 +20,13 @@
       style="background-color: #1c398e;"
     >
       <h2 class="text-2xl font-bold mb-8">ForanRoom★</h2>
+      
+      <!-- User Info Section -->
+      <div class="mb-6 p-4 bg-[#162556] rounded-lg">
+        <p class="text-lg font-semibold">{{ userData?.name || 'Usuario' }}</p>
+        <!-- <p class="text-sm text-gray-300">{{ userData?.email }}</p> -->
+        <p class="text-xs text-blue-300 mt-1">{{ userData?.typeUser }}</p>
+      </div>
 
       <button
         @click="irA('profile')"
@@ -43,6 +50,13 @@
   Explorar Arriendos    
 </button>
 
+      <!-- Add logout button -->
+      <button
+        @click="handleLogout"
+        class="mt-auto text-left px-4 py-3 rounded-lg transition-colors text-white bg-red-600 hover:bg-red-700"
+      >
+        Cerrar Sesión
+      </button>
     </nav>
 
     <!-- Contenido principal -->
@@ -58,15 +72,33 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
-
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import UserProfile from './UserProfile.vue'
 import Messages from './Messages.vue'
 import ArriendosView from './ArriendosView.vue'
 
-
+const router = useRouter()
 const currentView = ref('profile')
 const menuAbierto = ref(true)
+const userData = ref(null)
+
+onMounted(() => {
+  // Get user data from localStorage
+  const storedUserData = localStorage.getItem('userData')
+  if (storedUserData) {
+    userData.value = JSON.parse(storedUserData)
+  } else {
+    // Redirect to login if no user data is found
+    router.push('/')
+  }
+})
+
+const handleLogout = () => {
+  localStorage.removeItem('userData')
+  localStorage.removeItem('token')
+  router.push('/')
+}
 
 const currentViewComponent = computed(() => {
   if (currentView.value === 'profile') return UserProfile
